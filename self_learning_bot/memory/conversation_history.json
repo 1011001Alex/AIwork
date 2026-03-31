@@ -1,0 +1,38 @@
+{
+  "conversations": [
+    {
+      "timestamp": "2026-03-31T10:05:06.891106",
+      "user_input": "Тестовое сообщение 1",
+      "bot_response": "Я учусь у тебя, так что объясни ещё раз.",
+      "context": {}
+    },
+    {
+      "timestamp": "2026-03-31T10:05:06.891489",
+      "user_input": "Тестовое сообщение 2",
+      "bot_response": "Расскажи подробнее, я хочу понять лучше.",
+      "context": {}
+    },
+    {
+      "timestamp": "2026-03-31T10:05:06.908071",
+      "user_input": "Тестовое сообщение 3",
+      "bot_response": "Любопытная мысль! Продолжай.",
+      "context": {}
+    }
+  ],
+  "user_patterns": {
+    "common_phrases": [],
+    "response_style": {},
+    "topics": [],
+    "vocabulary": [
+      "1",
+      "тестовое",
+      "3",
+      "2",
+      "сообщение"
+    ],
+    "avg_response_length": 20.0,
+    "emoji_usage": 0,
+    "question_frequency": 0,
+    "command_patterns": []
+  }
+}

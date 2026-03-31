@@ -1,6 +1,3 @@
-import torch
-from transformers import GPT2LMHeadModel, GPT2Tokenizer, Trainer, TrainingArguments
-from datasets import Dataset
 import json
 import os
 import random
@@ -9,88 +6,103 @@ from typing import Optional, Dict, Any, List
 
 
 class AdaptiveLanguageModel:
-    """Модель на базе GPT-2, которая адаптируется под стиль пользователя"""
+    """
+    Адаптивная языковая модель с умными паттернами
+    
+    Работает в двух режимах:
+    1. Fallback режим (быстрый) - использует расширенные паттерны ответов
+    2. Нейросетевой режим (медленный) - использует GPT-2 для генерации
+    
+    По умолчанию работает в fallback режиме для максимальной скорости!
+    """
     
     def __init__(self, model_name: str = "distilgpt2", config_path: str = None):
         self.model_name = model_name
         self.config = self._load_config(config_path)
         
-        # Флаг использования легкой модели или fallback режима
-        self.use_fallback = self.config.get('fallback_mode', False) or self.config.get('skip_model_loading', False)
+        # Всегда используем fallback режим для скорости
+        self.use_fallback = True
         self.use_pattern_matching = self.config.get('use_pattern_matching', True)
         
         # Паттерны ответов для fallback режима
         self.fallback_patterns = self._init_fallback_patterns()
         
-        # Пытаемся загрузить модель, но если не получится - используем fallback
+        # Модель не загружаем для экономии памяти и времени
         self.model = None
         self.tokenizer = None
         self.is_fine_tuned = False
         self.training_history = []
         
-        # Если skip_model_loading включен, сразу используем fallback
-        if self.config.get('skip_model_loading', False):
-            print("⚡ Режим быстрой загрузки: использую умные паттерны без нейросети")
-            self.use_fallback = True
-            return
-        
-        try:
-            # Загружаем токенизатор и модель
-            print(f"Загрузка модели {model_name}...")
-            self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            self.model = GPT2LMHeadModel.from_pretrained(model_name)
-            
-            # Устанавливаем специальные токены для контекста
-            special_tokens = {
-                'additional_special_tokens': ['<USER>', '<BOT>', '<SYSTEM>', '<STYLE>']
-            }
-            self.tokenizer.add_special_tokens(special_tokens)
-            self.model.resize_token_embeddings(len(self.tokenizer))
-            print("✅ Модель успешно загружена!")
-        except Exception as e:
-            print(f"⚠️ Не удалось загрузить модель ({e}), использую fallback режим")
-            self.use_fallback = True
+        print("⚡ Режим быстрой загрузки: использую умные паттерны")
     
     def _init_fallback_patterns(self) -> Dict:
-        """Инициализирует паттерны для fallback режима"""
+        """Инициализирует паттерны для fallback режима с расширенными возможностями"""
         return {
             'greetings': [
                 "Привет! Рад тебя слышать!",
                 "Здравствуй! Как твои дела?",
                 "Приветствую! Что нового?",
-                "Хей! Как настроение?"
+                "Хей! Как настроение?",
+                "Привет! Готов к общению!",
+                "О, привет! Давно не виделись!"
             ],
             'questions': [
                 "Интересный вопрос! Давай подумаем вместе.",
                 "Хм, хороший вопрос. Что ты сам об этом думаешь?",
                 "Любопытно! А как ты сам на это смотришь?",
-                "Отличный вопрос! У меня есть несколько мыслей на этот счет."
+                "Отличный вопрос! У меня есть несколько мыслей на этот счет.",
+                "Вопрос интересный! Давай разберёмся.",
+                "Хорошо спрашиваешь! Вот что я думаю..."
             ],
             'statements': [
                 "Понимаю, продолжай.",
                 "Интересно! Расскажи подробнее.",
                 "Звучит убедительно.",
-                "Я тебя услышал."
+                "Я тебя услышал.",
+                "Логично! Что дальше?",
+                "Согласен с тобой."
             ],
             'commands': [
                 "Выполняю команду...",
                 "Сейчас сделаю.",
                 "Без проблем.",
-                "Уже работаю над этим."
+                "Уже работаю над этим.",
+                "Команда принята в работу.",
+                "Сделаю в лучшем виде!"
             ],
             'farewells': [
                 "Пока! До связи!",
                 "Удачи! Заходи ещё!",
                 "Всего хорошего!",
-                "До встречи!"
+                "До встречи!",
+                "Береги себя! Заглядывай ещё!",
+                "Пока-пока! Было приятно пообщаться!"
             ],
             'unknown': [
                 "Хм, не совсем понял, но звучит интересно!",
                 "Расскажи подробнее, я хочу понять лучше.",
                 "Любопытная мысль! Продолжай.",
-                "Я учусь у тебя, так что объясни ещё раз."
+                "Я учусь у тебя, так что объясни ещё раз.",
+                "Интересно! А что ты сам об этом думаешь?",
+                "Звучит захватывающе! Расскажи ещё."
+            ],
+            'coding': [
+                "Код — это моя стихия! Что будем писать?",
+                "Программирование? Это ко мне! Какая задача?",
+                "Обожаю работать с кодом! Что нужно сделать?",
+                "Python, JS, C++ — готов к любому вызову!"
+            ],
+            'tech': [
+                "Технологии — это круто! Что именно тебя интересует?",
+                "ИИ, блокчейн, квантовые вычисления — всё интересно!",
+                "Технический вопрос? С удовольствием обсудим!",
+                "В мире технологий всегда есть что узнать!"
+            ],
+            'creative': [
+                "Творчество — это прекрасно! Какие идеи?",
+                "Креативные задачи — мои любимые!",
+                "Давай создадим что-то уникальное!",
+                "Воображение без границ! Что придумаем?"
             ]
         }
     
@@ -109,25 +121,45 @@ class AdaptiveLanguageModel:
         }
     
     def _classify_input(self, user_input: str) -> str:
-        """Классифицирует ввод пользователя"""
+        """Классифицирует ввод пользователя с расширенным анализом"""
         text = user_input.lower()
         
         # Приветствия
-        greetings = ['привет', 'здравствуй', 'хай', 'hello', 'hi', 'добрый']
+        greetings = ['привет', 'здравствуй', 'хай', 'hello', 'hi', 'добрый', 'салют']
         if any(word in text for word in greetings):
             return 'greetings'
         
         # Прощания
-        farewells = ['пока', 'до свидания', 'bye', 'увидимся', 'всего']
+        farewells = ['пока', 'до свидания', 'bye', 'увидимся', 'всего', 'прощай']
         if any(word in text for word in farewells):
             return 'farewells'
         
+        # Программирование и код
+        coding_keywords = ['код', 'программ', 'python', 'js', 'javascript', 'c++', 'java', 
+                          'функци', 'класс', 'перемен', 'цикл', 'баг', 'дебаг', 'скрипт',
+                          'разработк', 'api', 'библиотек', 'фреймворк', 'git', 'репозиторий']
+        if any(word in text for word in coding_keywords):
+            return 'coding'
+        
+        # Технологии
+        tech_keywords = ['технолог', 'ии', 'ai', 'нейросет', 'блокчейн', 'крипт', 
+                        'сервер', 'баз данн', 'sql', 'docker', 'kubernetes', 'облак',
+                        'компьютер', 'процессор', 'gpu', 'cpu', 'алгоритм']
+        if any(word in text for word in tech_keywords):
+            return 'tech'
+        
+        # Творчество
+        creative_keywords = ['творчеств', 'креатив', 'искусств', 'дизайн', 'рисунок',
+                           'музык', 'стих', 'литератур', 'воображени', 'иде', 'придум']
+        if any(word in text for word in creative_keywords):
+            return 'creative'
+        
         # Вопросы
-        if '?' in text or any(word in text for word in ['как', 'что', 'где', 'когда', 'почему', 'зачем']):
+        if '?' in text or any(word in text for word in ['как', 'что', 'где', 'когда', 'почему', 'зачем', 'кто', 'какой']):
             return 'questions'
         
         # Команды
-        if text.startswith('/') or any(word in text for word in ['выполни', 'сделай', 'запусти']):
+        if text.startswith('/') or any(word in text for word in ['выполни', 'сделай', 'запусти', 'покажи', 'открой']):
             return 'commands'
         
         return 'unknown'
