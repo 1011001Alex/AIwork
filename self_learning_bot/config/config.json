@@ -1,0 +1,17 @@
+{
+  "model_name": "distilgpt2",
+  "max_length": 256,
+  "temperature": 0.7,
+  "top_p": 0.9,
+  "learning_rate": 2e-4,
+  "training_epochs": 2,
+  "batch_size": 2,
+  "memory_file": "memory/conversation_history.json",
+  "model_save_path": "models/fine_tuned_model",
+  "user_profile_file": "config/user_profile.json",
+  "min_samples_for_training": 5,
+  "adaptation_speed": 0.15,
+  "fallback_mode": true,
+  "use_pattern_matching": true,
+  "skip_model_loading": true
+}
